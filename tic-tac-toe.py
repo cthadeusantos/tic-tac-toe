@@ -1,4 +1,4 @@
-# Tic-tac-toe's game v0.0.2
+# Tic-tac-toe's game v0.0.3
 # 
 # Python 3.8.3
 #
@@ -57,7 +57,19 @@ class Piece:
         Returns:
             str: represents the piece ('O' or 'X')
         """
-        return ['O', 'X'][(self.value + 1)]
+        return self.symbol
+
+
+class PlayerFactory:
+    @staticmethod
+    def new(is_type):
+        #self.new(is_type.lower())
+        if is_type == 'human':
+            return Human()
+        elif is_type == 'computer':
+            return Computer()
+        else:
+            raise Exception("Sorry, you must setting a human or computer player!")
 
 
 class Player(metaclass=ABCMeta):
@@ -82,6 +94,12 @@ class Player(metaclass=ABCMeta):
         assert(Player.__counter < 2), "Player limit reached!"
         Player.__counter += 1
         return Player.__counter
+
+    def add_piece(self, piece):
+        if isinstance(piece, Piece):
+            self.piece = piece
+        else:
+            raise Exception("Sorry, you cannot set piece!")
 
     def __str__(self):
         """The player
@@ -111,30 +129,17 @@ class Computer(Player):
         super().__init__()
         self.name = "Computer " + str(self.new_player())
 
+    def next_turn(self, board, maximizing_value):
+        return self.minimax(board, maximizing_value)
+
+    def minimax(self, board, maximizing_value):
+        return 1
+
 
 class Board:
     """Tic-tac-toe Board"""
     def __init__(self):
         self.grid = [0] * 9
-        # self.turn = True  # Max is true , Min is false
-
-    def is_winner(self):
-        sum3 = self.grid[0] + self.grid[4] + self.grid[8]                 # Diagonal 1
-        sum4 = self.grid[2] + self.grid[4] + self.grid[6]                 # Diagonal 2
-        if abs(sum3) == 3 or abs(sum4) == 3:
-            return True
-        for x in range(3):
-            sum1 = self.grid[x*3] + self.grid[x*3+1] + self.grid[x*3+2]   # Horizontal
-            sum2 = self.grid[x] + self.grid[x+3] + self.grid[x+6]         # Vertical
-            if abs(sum1) == 3 or abs(sum2) == 3 or abs(sum3) == 3 or abs(sum4) == 3:
-                return True
-        return False
-
-    def turn(self, player, position):
-        if self.cell_is_empty(position):
-            self.grid[position] = player.piece.value
-            return True
-        return False
 
     def board_is_full(self):
         return not self.grid.count(0)
@@ -144,6 +149,18 @@ class Board:
 
     def cell_is_empty(self, position):
         return self.grid[position] == 0
+
+    def check_winner(self):
+        sum3 = self.grid[0] + self.grid[4] + self.grid[8]                 # Diagonal 1
+        sum4 = self.grid[2] + self.grid[4] + self.grid[6]                 # Diagonal 2
+        if abs(sum3) == 3 or abs(sum4) == 3:
+            return (sum3 == -3 or sum4 == -3)*-1 or (sum3 == 3 or sum4 == 3)*1
+        for x in range(3):
+            sum1 = self.grid[x*3] + self.grid[x*3+1] + self.grid[x*3+2]   # Horizontal
+            sum2 = self.grid[x] + self.grid[x+3] + self.grid[x+6]         # Vertical
+            if abs(sum1) == 3 or abs(sum2) == 3:
+                return (sum1 == -3 or sum2 == -3)*-1 or (sum1 == 3 or sum2 == 3)*1
+        return 0
 
     def __str__(self):
         string = ""
@@ -164,8 +181,17 @@ class Game:
     def __init__(self):
         self.board = Board()
         self.player = []
-        self.player_in_action = None
+        self.current_player = None
         self.winner = None
+
+    def turn(self, player, position=None):
+        if isinstance(player, Computer):
+            position = player.next_turn(self.board, player.piece)
+
+        if self.cell_is_empty(position):
+            self.board.grid[position] = player.piece.value
+            return True
+        return False
 
     def play(self):
         print("*" * 10 + ' Welcome TicTacToe ' + "*" * 10)
@@ -175,32 +201,35 @@ class Game:
             print('(1) Human x Computer, (2) Human x Human or (3) Computer x Computer')
             auxiliary = input()
             if auxiliary.isdigit():
-                if 0 < int(auxiliary) < 4:
+                # if 0 < int(auxiliary) < 4:
+                #     watchdog = False
+                if auxiliary == '1':
+                    print("Not implemented yet!")
+                    # self.new_player('human')
+                    # self.new_player('computer')
+                elif auxiliary == '2':
                     watchdog = False
-        if auxiliary == '1':
-            self.set_player(Human())
-            self.set_player(Computer())
-        elif auxiliary == '2':
-            self.set_player(Human())
-            self.set_player(Human())
-        elif auxiliary == '3':
-            self.set_player(Computer())
-            self.set_player(Computer())
-        self.first_player()
+                    self.new_player('human')
+                    self.new_player('human')
+                elif auxiliary == '3':
+                    print("Not implemented yet!")
+                    # self.new_player('computer')
+                    # self.new_player('computer')
+        self.first_player()     # select who will play first
         print("First player will be " + self.player_name() +
               ' - Your piece is (' + self.player_piece() + ')')
         watchdog = True
-        while watchdog and not self.board.board_is_full():
+        while watchdog and self.is_board_full:
             print(self.board)
             print(self.player_name(), "( ", self.player_piece(), " ) make your move, choose the board place (1-9): ")
             user_input = input()
             if user_input.isdigit():
-                auxiliary = int(user_input)
-                if 1 <= auxiliary <= 9:
-                    auxiliary -= 1
-                    if self.cell_is_empty(auxiliary):
-                        self.board.turn(self.player_in_action, auxiliary)
-                        if self.board.is_winner():
+                position = int(user_input)
+                if 1 <= position <= 9:
+                    position -= 1
+                    if self.cell_is_empty(position):
+                        self.turn(self.current_player, position)
+                        if self.board.check_winner():
                             self.winner = self.player_name()
                             watchdog = False
                         else:
@@ -214,30 +243,24 @@ class Game:
         else:
             print('Draw!')
 
+    def is_board_full(self):
+        return self.board.board_is_full()
+
     def cell_is_empty(self, position):
         return self.board.cell_is_empty(position)
 
     def player_name(self):
-        return self.player_in_action.name
+        return self.current_player.name
 
     def player_piece(self):
-        return self.player_in_action.piece.symbol
-
-    def player_piece_value(self):
-        return self.player_in_action.piece.value
+        return self.current_player.piece.symbol
 
     def next_player(self):
-        if self.player_in_action == self.player[0]:
-            self.player_in_action = self.player[1]
-        else:
-            self.player_in_action = self.player[0]
+        self.current_player = self.player[1] if self.current_player == self.player[0] else self.player[0]
 
-    def set_player(self, instance):
-        if isinstance(instance, Human) or isinstance(instance, Computer):
-            self.player.append(instance)
-            self.player[len(self.player) - 1].piece = Piece()
-        else:
-            raise Exception("Sorry, you must setting a human or computer player")
+    def new_player(self, is_type):
+        self.player.append(PlayerFactory.new(is_type))
+        self.player[len(self.player) - 1].add_piece(Piece())
 
     def first_player(self):
         """Choose first player randomily
@@ -248,7 +271,7 @@ class Game:
         Returns:
             None
         """
-        self.player_in_action = self.player[randint(0, 100) % 2]
+        self.current_player = self.player[randint(0, 100) % 2]
 
 
 # Main
